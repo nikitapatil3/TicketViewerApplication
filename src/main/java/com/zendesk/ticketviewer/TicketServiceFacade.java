@@ -48,7 +48,6 @@ public class TicketServiceFacade {
 			 throw new ApplicationException(ex.getStatusCode().value());
 		 }
 		 return ticket;
-			 
 	}
 
 	/**

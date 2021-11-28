@@ -84,25 +84,17 @@ public class TicketViewerUtil {
 
 	/**
 	 * This method shows information about specific ticket.
-	 * It first checks whether ticket list already has that ticket if yes it simply prints information about that ticket
-	 * Otherwise it calls ticket service api to get information about that ticket
 	 * @throws JSONException
 	 * @throws ParseException
 	 */
 	public void showSpecificTicket() throws JSONException, ParseException {
 		
-		System.out.println("\tEnter Ticket Number to see information of that ticket: ");
+		System.out.println("\tEnter Ticket id to see information of that ticket: ");
 		try {
-			int ticketNumber = Integer.parseInt(inputScanner.next());
-		
-			Ticket ticket;
-			if (this.ticketList.isEmpty() || ticketNumber > this.ticketList.size())
-				ticket = ticketServiceFacade.getTicketInfo(ticketNumber);
-			else 
-				ticket = this.ticketList.get(ticketNumber-1);
-			
-			System.out.println("\t\tTicket with subject "+ ticket.getSubject() + " and with description " + ticket.getDescription() + " is requested by " + 
-					ticket.getRequester_id() + " and it is submitted by " + ticket.getSubmitter_id() + " On " 
+			int ticketId = Integer.parseInt(inputScanner.next());
+			Ticket ticket = ticketServiceFacade.getTicketInfo(ticketId);
+			System.out.println("\t\tTicket with id " + ticket.getId() + " with subject "+ ticket.getSubject() + " and with description " + ticket.getDescription() + " is requested by " +
+					ticket.getRequester_id() + " and it is submitted by " + ticket.getSubmitter_id() + " On "
 					+ Constants.DATE_TIME_ZONE_FORMATTER.parse(ticket.getCreated_at()) + ". Current status of the ticket is "+ ticket.getStatus()+".");
 		} catch (ApplicationException ex) {
 			handleApplicationException(ex);

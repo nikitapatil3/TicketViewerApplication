@@ -47,7 +47,6 @@ public class TicketViewerApplicationRunner {
 		String userOption = inputScanner.next();
 
 		if (userOption.equals("menu")) {
-
 			String viewOption = "1";
 			while (!viewOption.equals("quit")) {
 				System.out.println("\t\nSelect view options:");
