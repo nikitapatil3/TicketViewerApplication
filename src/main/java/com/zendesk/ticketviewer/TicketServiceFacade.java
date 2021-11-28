@@ -15,13 +15,13 @@ import com.google.gson.Gson;
 
 public class TicketServiceFacade {
 
-	 private RestTemplate restTemplate = new RestTemplate();;
+	 private RestTemplate restTemplate = new RestTemplate();
 	 
 	 public Ticket getTicketInfo(int id) throws ApplicationException {
 		Ticket ticket = null;
 		 try {
 			 HttpHeaders headers = new HttpHeaders();
-			 headers.setBasicAuth("npatil4@gmu.edu", "Ninimru3@psp");
+			 headers.setBasicAuth(System.getenv("Username"), System.getenv("Password"));
 			 HttpEntity<String> request = new HttpEntity<String>(headers);
 		
 			 ResponseEntity<String> response = restTemplate.exchange(Constants.GET_TICKET_INFO_URL +"/" + id, HttpMethod.GET, 
@@ -47,7 +47,7 @@ public class TicketServiceFacade {
 		try {
 			JSONArray ticketArray = null;
 			HttpHeaders headers = new HttpHeaders();
-		    headers.setBasicAuth("npatil4@gmu.edu", "Ninimru3@psp");
+		    headers.setBasicAuth(System.getenv("Username"), System.getenv("Password"));
 		    HttpEntity<String> request = new HttpEntity<String>(headers);
 		    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(Constants.GET_TICKET_INFO_URL)
 				    .queryParam("page", pageNumber);
