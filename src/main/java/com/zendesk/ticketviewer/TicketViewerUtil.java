@@ -1,86 +1,120 @@
 package com.zendesk.ticketviewer;
 
+import org.json.JSONException;
+import org.springframework.web.client.RestTemplate;
+
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
+import static com.zendesk.ticketviewer.Constants.NO_OF_TICKETS_PER_PAGE;
+import static com.zendesk.ticketviewer.Constants.NO_OF_TICKETS_RETURNED_BY_API_PER_PAGE;
+
 public class TicketViewerUtil {
 	
-	private TicketServiceFacade ticketServiceFacade = new TicketServiceFacade();
+	private TicketServiceFacade ticketServiceFacade;
 	
-	private static List<Ticket> ticketList = new ArrayList<>();
-	private static int noOfTickets = 0;
-	private static Scanner inputScanner = new Scanner(System.in);
-	 
-	
-	public void showAllTickets() {
-		
+	private List<Ticket> ticketList = new ArrayList<>();
+	private int noOfTickets = 0;
+	private Scanner inputScanner = new Scanner(System.in);
+
+	public TicketViewerUtil(RestTemplate restTemplate) {
+		this.ticketServiceFacade = new TicketServiceFacade(restTemplate);
+	}
+
+	/**
+	 * This method is used to show information about all tickets
+	 * It first fetch 100 tickets and then displays them
+	 * when user wants to go to page which will have tickets with id greater than 100 thenit calls ticket service api to get tickets from that page
+	 * Whenever API is called ticket information is stored in the ticketlist, so when user navigates to different page there is no need to call API every time
+	 * @throws JSONException
+	 * @throws ParseException
+	 */
+	public void showAllTickets() throws JSONException, ParseException {
 		try {
-			if (ticketList.isEmpty())
-				noOfTickets = ticketServiceFacade.getTicketsByPageNumber(1, ticketList);
+			if (this.ticketList.isEmpty()) {
+				TicketInfo ticketInfo = ticketServiceFacade.getTicketsByPageNumber(1);
+				this.noOfTickets = ticketInfo.getTotalTickets();
+				this.ticketList.addAll(ticketInfo.getTicketList());
+			}
 			
-			int totalPages = noOfTickets/25 + (noOfTickets%25 == 0 ? 0: 1);
-			if (noOfTickets == 0) {
+			int totalPages = this.noOfTickets/NO_OF_TICKETS_PER_PAGE + (this.noOfTickets%NO_OF_TICKETS_PER_PAGE == 0 ? 0: 1);
+			if (this.noOfTickets == 0) {
 				System.out.println("No ticket exists in the system");
 				return;
 			}
 			
-			System.out.println("\t\tTotal tickets " + noOfTickets + " Showing 25 ticket per Page. " + "Total Number of pages are " 
+			System.out.println("\t\tTotal tickets " + this.noOfTickets + " Showing " + NO_OF_TICKETS_PER_PAGE
+					+ " ticket per Page. " + "Total Number of pages are "
 					+ totalPages +".");
 			int currentPageNumber = 1;
 		
 			while (true) {
 				System.out.println("\t\tCurrently showing page number: " + currentPageNumber);
 				
-				for (int ticketNo = (currentPageNumber-1) * 25; ticketNo < (currentPageNumber-1) * 25 + 25
-						&& ticketNo < ticketList.size(); ticketNo++) {
-					System.out.println("\t\tTicket with id " + ticketList.get(ticketNo).getId()+ " with subject "+ ticketList.get(ticketNo).getSubject() 
-							+" is requested by " + ticketList.get(ticketNo).getRequester_id() + " and it is submitted by " 
-							+ ticketList.get(ticketNo).getSubmitter_id() + " On " 
-							+ Constants.DATE_TIME_ZONE_FORMATTER.parse(ticketList.get(ticketNo).getCreated_at()));
+				for (int ticketNo = (currentPageNumber-1) * NO_OF_TICKETS_PER_PAGE;
+					 	ticketNo < (currentPageNumber-1) * NO_OF_TICKETS_PER_PAGE + NO_OF_TICKETS_PER_PAGE
+						&& ticketNo < this.ticketList.size(); ticketNo++) {
+					System.out.println("\t\tTicket with id " + this.ticketList.get(ticketNo).getId()+ " with subject "+ this.ticketList.get(ticketNo).getSubject()
+							+" is requested by " + this.ticketList.get(ticketNo).getRequester_id() + " and it is submitted by "
+							+ this.ticketList.get(ticketNo).getSubmitter_id() + " On "
+							+ Constants.DATE_TIME_ZONE_FORMATTER.parse(this.ticketList.get(ticketNo).getCreated_at()));
 				}
 				
-				System.out.println("\n\t\tEnter Page Number(1-" + totalPages + ") to view tickets on that page and enter any other number to exit");
+				System.out.println("\n\t\tEnter Page Number(1-" + totalPages + ") to view tickets on that page and enter any other number to check other options: ");
 				
 				currentPageNumber = Integer.parseInt(inputScanner.next());
 				if (currentPageNumber < 1 || currentPageNumber > totalPages) {
 					break;
 				}
 				
-				if (ticketList.size() < currentPageNumber*25) {
-					ticketServiceFacade.getTicketsByPageNumber((currentPageNumber *25) /100 + 1, ticketList);
+				if (this.ticketList.size() < currentPageNumber * NO_OF_TICKETS_PER_PAGE &&
+						this.ticketList.size() != this.noOfTickets) {
+					this.ticketList.addAll(ticketServiceFacade.getTicketsByPageNumber((currentPageNumber * NO_OF_TICKETS_PER_PAGE) / NO_OF_TICKETS_RETURNED_BY_API_PER_PAGE + 1)
+							.getTicketList());
 				}
 			}
 		} catch (ApplicationException ex) {
 			handleApplicationException(ex);
-		} catch (Exception ex) {
-			 System.out.println(Constants.COMMON_ERROR_MESSAGE + ex);
+		} catch (NumberFormatException ex) {
+			 System.out.println("Wrong Input");
 		}
 	}
-	
-	public void showSpecificTicket() {
+
+	/**
+	 * This method shows information about specific ticket.
+	 * It first checks whether ticket list already has that ticket if yes it simply prints information about that ticket
+	 * Otherwise it calls ticket service api to get information about that ticket
+	 * @throws JSONException
+	 * @throws ParseException
+	 */
+	public void showSpecificTicket() throws JSONException, ParseException {
 		
 		System.out.println("\tEnter Ticket Number to see information of that ticket: ");
 		try {
 			int ticketNumber = Integer.parseInt(inputScanner.next());
 		
-			Ticket ticket = null;
-			if (ticketList.isEmpty() || ticketNumber > ticketList.size())
+			Ticket ticket;
+			if (this.ticketList.isEmpty() || ticketNumber > this.ticketList.size())
 				ticket = ticketServiceFacade.getTicketInfo(ticketNumber);
 			else 
-				ticket = ticketList.get(ticketNumber-1);
+				ticket = this.ticketList.get(ticketNumber-1);
 			
 			System.out.println("\t\tTicket with subject "+ ticket.getSubject() + " and with description " + ticket.getDescription() + " is requested by " + 
 					ticket.getRequester_id() + " and it is submitted by " + ticket.getSubmitter_id() + " On " 
 					+ Constants.DATE_TIME_ZONE_FORMATTER.parse(ticket.getCreated_at()) + ". Current status of the ticket is "+ ticket.getStatus()+".");
 		} catch (ApplicationException ex) {
 			handleApplicationException(ex);
-		} catch (Exception ex) {
-			 System.out.println(Constants.COMMON_ERROR_MESSAGE + ex);
+		} catch (NumberFormatException ex) {
+			 System.out.println("Wrong Input");
 		}
-		
 	}
 
+	/**
+	 * This method handles application exception
+	 * @param ex
+	 */
 	private void handleApplicationException(ApplicationException ex) {
 		
 		switch (ex.getErrorCode()) {
@@ -96,5 +130,36 @@ public class TicketViewerUtil {
 		}
 		
 	}
-	
+
+	/**
+	 * This method is used to get total number of tickets in the unit test case
+	 * @return number of tickets in the system
+	 */
+	public int getNoOfTickets() {
+		return this.noOfTickets;
+	}
+
+	/**
+	 * This method is used to get ticket list in the unit test
+	 * @return returns ticket list
+	 */
+	public List<Ticket> getTicketList() {
+		return this.ticketList;
+	}
+
+	/**
+	 * This method is used to mock ticketservicefacade in the unit test
+	 * @param ticketServiceFacade TicketServiceFacade
+	 */
+	public void setTicketServiceFacade(TicketServiceFacade ticketServiceFacade) {
+		this.ticketServiceFacade = ticketServiceFacade;
+	}
+
+	/**
+	 * This method is used to mock the input scanner in the unit test cases
+	 * @param sc input scanner
+	 */
+	public void setInputScanner(Scanner sc) {
+		this.inputScanner = sc;
+	}
 }
