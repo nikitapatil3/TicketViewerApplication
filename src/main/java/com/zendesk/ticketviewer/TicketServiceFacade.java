@@ -19,9 +19,13 @@ import com.google.gson.Gson;
 public class TicketServiceFacade {
 
 	 private RestTemplate restTemplate;
+	 private HttpHeaders headers = new HttpHeaders();
 
 	 public TicketServiceFacade(RestTemplate restTemplate) {
 		 this.restTemplate = restTemplate;
+		 //Default environment value is used for unit test cases actual application checks environment variable value at application startup only
+		 this.headers.setBasicAuth(System.getenv().getOrDefault("Username", "testUserName"),
+				 System.getenv().getOrDefault("Password", "testPassword"));
 	 }
 
 	/**
@@ -34,18 +38,12 @@ public class TicketServiceFacade {
 	 public Ticket getTicketInfo(int id) throws ApplicationException, JSONException {
 		Ticket ticket;
 		 try {
-			 HttpHeaders headers = new HttpHeaders();
-			 headers.setBasicAuth(System.getenv().getOrDefault("Username", "testUserName"),
-					 System.getenv().getOrDefault("Password", "testPassword"));
-			 HttpEntity<String> request = new HttpEntity<String>(headers);
-		
+			 HttpEntity<String> request = new HttpEntity<>(this.headers);
 			 ResponseEntity<String> response = restTemplate.exchange(Constants.GET_TICKET_INFO_URL +"/" + id, HttpMethod.GET, 
 					 request, String.class);
-
 			 JSONObject responseBody = new JSONObject(response.getBody());
 			 Gson gson = new Gson();  
 			 ticket = gson.fromJson(responseBody.getJSONObject("ticket").toString(), Ticket.class);
-			 
 		 } catch (HttpClientErrorException ex) {
 			 throw new ApplicationException(ex.getStatusCode().value());
 		 }
@@ -65,10 +63,7 @@ public class TicketServiceFacade {
 		List<Ticket> ticketList = new ArrayList<>();
 		try {
 			JSONArray ticketArray;
-			HttpHeaders headers = new HttpHeaders();
-		    headers.setBasicAuth(System.getenv().getOrDefault("Username", "testUserName"),
-					System.getenv().getOrDefault("Password", "testPassword"));
-		    HttpEntity<String> request = new HttpEntity<String>(headers);
+		    HttpEntity<String> request = new HttpEntity<>(this.headers);
 		    UriComponentsBuilder builder = UriComponentsBuilder.fromUriString(Constants.GET_TICKET_INFO_URL)
 				    .queryParam("page", pageNumber);
 			ResponseEntity<String> response = restTemplate.exchange(builder.buildAndExpand().toUri(), HttpMethod.GET, 
@@ -90,7 +85,7 @@ public class TicketServiceFacade {
 	}
 
 	/**
-	 * This method is used to mock the resttemplate in the  unit test cases
+	 * This method is used to mock the rest template in the  unit test cases
 	 * @param restTemplate
 	 */
 	public void setRestTemplate(RestTemplate restTemplate) {
